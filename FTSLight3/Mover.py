@@ -166,6 +166,7 @@ class FileMoverTask(Task, Logged):
             #
             # Rename source
             #
+            self.debug("renaming the source...")
             self.updateStatus("renaming source")
 
             cmd = self.Manager.renameSourceCommand(self.Server, self.MetadataFilePath)
