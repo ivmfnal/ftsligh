@@ -5,9 +5,9 @@ import time, fnmatch, re
 
 Debug = False
 
-def debug(msg):
+def debug(*msg):
     if Debug:
-        print(msg)
+        print(*msg)
 
 class FileDescriptor(object):
 

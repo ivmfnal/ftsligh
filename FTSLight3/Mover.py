@@ -4,12 +4,13 @@ import json, sys, os, time, glob, traceback
 from GraphiteInterface import GraphiteInterface
 from Scanner import ScanManager
 from tools import runCommand
+from fts3client import FTS3
 
 Debug = False
 
-def debug(msg):
+def debug(*msg):
     if Debug:
-        print(msg)
+        print(*msg)
         
 class FileMoverTask(Task):
     def __init__(self, manager, fts_client, config, logger, filedesc):
@@ -235,6 +236,10 @@ class Configuration(object):
         self.DestinationURLPattern = config.get("Mover", "DestinationURLPattern")
         self.RemovePathPrefix = config.get("Mover", "RemovePathPrefix", "/")
 
+        self.FTS3_URL = config.get("FTS3", "URL")
+        self.DelegatedProxy = config.get("FTS3", "delegated_proxy", os.environ.get("X509_USER_PROXY"))
+        assert self.DelegatedProxy is not None, "X509 proxy delegated to FTS3 must be configured"
+
         self.TransferTimeout = int(config.get("Mover", "TransferTimeout", -1))
         self.StaggerInterval = float(config.get("Mover", "StaggerInterval", 0.0))
         
@@ -364,9 +369,9 @@ class Manager(PyThread):
         PyThread.__init__(self)
         self.HistoryDB = history_db
         self.Config = config
-        self.CopyTemplate = self.Config.CopyTemplate
+        #self.CopyTemplate = self.Config.CopyTemplate
         self.DownloadTemplate = self.Config.DownloadTemplate
-        self.UploadTemplate = self.Config.UploadTemplate
+        #self.UploadTemplate = self.Config.UploadTemplate
         self.DeleteTemplate = self.Config.DeleteTemplate
         self.RenameTemplate = self.Config.RenameTemplate
         self.TempDir = self.Config.TempDir
@@ -379,6 +384,8 @@ class Manager(PyThread):
         self.DatabaseFile = self.Config.DatabaseFile
         self.TransferTimeout = self.Config.TransferTimeout
         self.StaggerInterval = self.Config.StaggerInterval
+
+        self.FTS3 = FTS3(config.FTS3_URL, config.DelegatedProxy)
         
         self.UserPasswords = config.UserPasswords
         
@@ -398,6 +405,7 @@ class Manager(PyThread):
                 self.Config.GraphitePort, self.Config.GraphiteNamespace)
                 
         self.ScanMgr = ScanManager(self, config, held)
+        debug("Manager created. Held=", held)
         
     def userPassword(self, username):
         return self.UserPasswords.get(username)          
@@ -508,7 +516,7 @@ class Manager(PyThread):
         
     @synchronized                         
     def addFile(self, desc):
-        mover_task = FileMoverTask(self, self.Config, self.Logger, desc)
+        mover_task = FileMoverTask(self, self.Config, self.FTS3, self.Logger, desc)
         #, self.TempDir,
         #        self.SourcePurge, self.ChecksumRequired, self.TransferTimeout)
         self.MoverQueue.addTask(mover_task)

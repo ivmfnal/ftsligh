@@ -1,4 +1,5 @@
 import sqlite3
+from pythreader import Primitive, synchronized
 
 class _HistoryDB(Primitive):
 

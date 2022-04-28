@@ -29,19 +29,24 @@ class FTS3Transfer(object):
         return self.State, self.Reason
 
     def update_status(self):
+        print("updating status...")
         data = self.Client.job_status(self.JobID)
         files = data["files"] = self.Client.files(self.JobID)
+        print("status updated")
         self.State = data.get("job_state")
         self.Reason = data.get("reason")
-        assert isinstance(files, lst) and len(files) == 1
+        assert isinstance(files, list) and len(files) == 1
         self.Checksums = {}
         checksums = files[0].get("checksum", "").split()
+        self.Adler32 = None
         for v in checksums:
             try:
                 name, value = v.split(":", 1)
                 if name.lower() == "adler32":
                     self.Adler32 = value
                     break
+            except:
+                pass
         return data
         
     def wait(self, poll_interval=10, timeout=None):
@@ -74,11 +79,12 @@ class FTS3(object):
     def __init__(self, url_head, proxy_file):
         self.URLHead = url_head
         self.ProxyFile = proxy_file
-        self.Context = Context(endpoint, self.ProxyFile, None, verify=False)
+        self.Context = Context(url_head, self.ProxyFile, None, verify=False)
 
-    def submit(self, src_url, dst_url, metadata = None, **meta_args):
+    def submit(self, src_url, dst_url, metadata = None, overwrite=True, **meta_args):
+        params = {"overwrite":overwrite}
         request = {
-            "params": {},
+            "params": params,
             "files": [
                 {
                     "sources": [src_url],
@@ -91,6 +97,7 @@ class FTS3(object):
             metadata.update(meta_args)
             request["metadata"] = metadata
         response = self.Context.post_json("/jobs", request)
+        print(response)
         job_id = json.loads(response)["job_id"]
         return FTS3Transfer(self, job_id, src_url, dst_url)
 
@@ -101,4 +108,24 @@ class FTS3(object):
     def files(self, job_id):
         status_response = self.Context.get(f"/jobs/{job_id}/files")
         return json.loads(status_response)
+
+Usage = """
+python fts3client.py <server> <proxy> <src url> <dst url>
+"""
         
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv[1:]) != 4:
+        print(Usage)
+        sys.exit(2)
+
+    server, proxy, src, dst = sys.argv[1:]
+
+    fts3 = FTS3(server, proxy)
+    transfer = fts3.submit(src, dst)
+    print("Job ID:", transfer.JobID)
+    print(transfer.wait())
+    print(transfer.State, transfer.Error)
+
+
