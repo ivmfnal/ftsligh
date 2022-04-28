@@ -5,16 +5,12 @@ from GraphiteInterface import GraphiteInterface
 from Scanner import ScanManager
 from tools import runCommand
 from fts3client import FTS3
+from logs import Logged
 
-Debug = False
-
-def debug(*msg):
-    if Debug:
-        print(*msg)
-        
-class FileMoverTask(Task):
+class FileMoverTask(Task, Logged):
     def __init__(self, manager, fts_client, config, logger, filedesc):
         Task.__init__(self)
+        Logged.__init__(f"MoverTask({filedesc.Name})")
         self.ID = "%s.%s" % (id(self),time.time())
         self.FTSClient = fts_client
         self.Manager = manager
@@ -50,7 +46,6 @@ class FileMoverTask(Task):
         self.TransferTimeout = config.TransferTimeout
         self.TransferTime = None
         self.TransferStarted = None
-        #debug("%s created" % (self,))
 
     def __str__(self):
         return "[FileMoverTask(%s %s %s)]" % (
@@ -59,12 +54,12 @@ class FileMoverTask(Task):
             self.FileName)
         
     def run(self):
-        debug("Mover %s %s %s started" % (self.ID, self.FileName, self.Size))
+        self.debug("Mover %s %s %s started" % (self.ID, self.FileName, self.Size))
         self.Status = "started"
         try:    self.do_run()
         except:
             self.failed("File mover exception: %s" % (traceback.format_exc(),))
-        debug("Mover %s ended" % (self.FileName,))
+        self.debug("Mover %s ended" % (self.FileName,))
         
     def log(self, msg):
         self.Logger.log("[%s]: %s" % (self.FileName, msg))
@@ -86,7 +81,7 @@ class FileMoverTask(Task):
         self.updateStatus("validating metadata")
         meta_tmp = self.TempDir + "/" + self.MetadataFileName
         download_cmd = self.Manager.metadataDownloadCommand(self.Server, self.MetadataFilePath, self.MetadataFileName, meta_tmp)
-        ret, output = runCommand(download_cmd, self.TransferTimeout, debug)
+        ret, output = runCommand(download_cmd, self.TransferTimeout, self.debug)
         if ret:
             self.failed("Metadata download failed: %s" % (output,))
             return
@@ -153,13 +148,13 @@ class FileMoverTask(Task):
             self.updateStatus("deleting source")
 
             cmd = self.Manager.deleteSourceCommand(self.Server, self.MetadataFilePath)
-            ret, output = runCommand(cmd, self.TransferTimeout, debug)
+            ret, output = runCommand(cmd, self.TransferTimeout, self.debug)
             if ret:
                 self.failed("Metadata file delete failed: %s" %(output,))
                 return
 
             cmd = self.Manager.deleteSourceCommand(self.Server, self.FilePath)
-            ret, output = runCommand(cmd, self.TransferTimeout, debug)
+            ret, output = runCommand(cmd, self.TransferTimeout, self.debug)
             if ret:
                 self.failed("Data file delete failed: %s" %  (output,))
                 return
@@ -171,13 +166,13 @@ class FileMoverTask(Task):
             self.updateStatus("renaming source")
 
             cmd = self.Manager.renameSourceCommand(self.Server, self.MetadataFilePath)
-            ret, output = runCommand(cmd, self.TransferTimeout, debug)
+            ret, output = runCommand(cmd, self.TransferTimeout, self.debug)
             if ret:
                 self.failed("Metadata file rename failed: %s" %(output,))
                 return
 
             cmd = self.Manager.renameSourceCommand(self.Server, self.FilePath)
-            ret, output = runCommand(cmd, self.TransferTimeout, debug)
+            ret, output = runCommand(cmd, self.TransferTimeout, self.debug)
             if ret:
                 self.failed("Data file delete failed: %s" %  (output,))
                 return
@@ -193,7 +188,7 @@ class FileMoverTask(Task):
         self.Manager.moverFailed(self, reason)
 
     def succeeded(self):
-        #debug("succeeded(%s)" % (self.FileName,))
+        #self.debug("succeeded(%s)" % (self.FileName,))
         self.Ended = True
         self.Success = True
         self.log("done")
@@ -362,9 +357,10 @@ class GraphiteSender(PyThread):
             out = sorted(out.items())
             self.GInterface.send_timed_array(out)
 
-class Manager(PyThread):
+class Manager(PyThread, Logged):
 
     def __init__(self, config, held, history_db):
+        Logged.__init__("Manager")
     
         PyThread.__init__(self)
         self.HistoryDB = history_db
@@ -405,7 +401,7 @@ class Manager(PyThread):
                 self.Config.GraphitePort, self.Config.GraphiteNamespace)
                 
         self.ScanMgr = ScanManager(self, config, held)
-        debug("Manager created. Held=", held)
+        self.debug("Manager created. Held=", held)
         
     def userPassword(self, username):
         return self.UserPasswords.get(username)          
@@ -450,7 +446,7 @@ class Manager(PyThread):
         queued, running = self.MoverQueue.tasks()
         queued = [m.FileDescriptor for m in queued]
         movers = sorted(running, key = lambda mover:   mover.FileName)
-        #debug("queued: %s active: %s" % (queued, movers))
+        #self.debug("queued: %s active: %s" % (queued, movers))
         return (movers, queued, retry_queue, done_history, [])
         
     @synchronized
@@ -502,14 +498,14 @@ class Manager(PyThread):
         
     @synchronized
     def moverFailed(self, mover, reason):
-        debug("Failed: %s %s" % (mover.FileName, reason))
+        self.debug("Failed: %s %s" % (mover.FileName, reason))
         # update the DB
         self.HistoryDB.fileFailed(mover.FileName, reason)
         self.retryLater(mover.FileDescriptor)
         
     @synchronized
     def moverSucceeded(self, mover):
-        debug("Succeeded: %s" % (mover.FileName, ))
+        self.debug("Succeeded: %s" % (mover.FileName, ))
         # update the DB
         self.DoneHistory[mover.FileName] = (time.time(), mover.FileDescriptor)
         self.HistoryDB.fileSucceeded(mover.FileName, mover.Size, mover.TransferTime)
@@ -521,7 +517,7 @@ class Manager(PyThread):
         #        self.SourcePurge, self.ChecksumRequired, self.TransferTimeout)
         self.MoverQueue.addTask(mover_task)
         self.log("file queued: %s" % (desc,))
-        debug("Added to queue: %s" % (desc,))
+        self.debug("Added to queue: %s" % (desc,))
         self.HistoryDB.fileQueued(desc.Name)
                 
     @synchronized
@@ -574,6 +570,7 @@ class Manager(PyThread):
 if __name__ == "__main__":
     import getopt, historydb
     from GUI import GUIThread
+    import logs
     
     opts, args = getopt.getopt(sys.argv[1:], "c:d")
     opts = dict(opts)
@@ -581,7 +578,8 @@ if __name__ == "__main__":
     if not config:
         print("Configuration file must be specified either with -c or using env. variable MOVER_CFG")
     config = Configuration(config)
-    Debug = "-d" in opts
+    
+    logs.init_logger("-", "-d" in opts)
     
     history_db = historydb.open(config.DatabaseFile)
     

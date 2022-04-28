@@ -2,12 +2,7 @@ from pythreader import PyThread, synchronized, Primitive
 from threading import Event
 from tools import runCommand
 import time, fnmatch, re
-
-Debug = False
-
-def debug(*msg):
-    if Debug:
-        print(*msg)
+from logs import Logged
 
 class FileDescriptor(object):
 
@@ -30,10 +25,11 @@ class FileDescriptor(object):
     __repr__ = __str__
     
 
-class ScanManager(Primitive):
+class ScanManager(Primitive, Logged):
 
     def __init__(self, manager, config, held=False):
         Primitive.__init__(self)
+        Logged.__init__(self, "ScanManager")
         self.ServersLocations = config.ScanServersLocations   # [ (server, location), ... ]
         self.StaggerInterval = float(config.ScanInterval)/len(self.ServersLocations)
         self.Scanners = {}                          # [(server, location) -> Scanner]
@@ -77,12 +73,14 @@ class ScanManager(Primitive):
         ]
         return sorted(out)            
 
-class Scanner(PyThread):
+class Scanner(PyThread, Logged):
 
     PrescaleMultiplier = 10000
 
     def __init__(self, manager, server, location, config):
         PyThread.__init__(self)
+        my_id = ("%x" % (id(self),))[-4:]
+        Logged.__init__(self, f"Scanner@{my_id}")
         self.Manager = manager
         self.Server, self.Location = server, location
         self.FilenamePattern = config.FilenamePattern
@@ -90,7 +88,6 @@ class Scanner(PyThread):
             .replace("$server", self.Server)
                 
         self.ScanInterval = config.ScanInterval
-        self.Logger = manager.Logger
         self.DirectoryRE = re.compile(config.DirectoryRE) if config.DirectoryRE else None
         self.ParseRE = re.compile(config.ParseRE)
         self.FileRE = re.compile(config.FileRE)
@@ -102,10 +99,8 @@ class Scanner(PyThread):
         self.OperationTimeout = config.ScannerOperationTimeout
         
         self.Held = False
+        self.self.debug("initiated")
                 
-    def log(self, msg):
-        self.Logger.log("Scanner: %s" % (msg,))
-        
     def passesPrescale(self, fn):
         return (hash(fn + self.PrescaleSalt) % self.PrescaleMultiplier) < self.PrescaleFactor
         
@@ -123,8 +118,8 @@ class Scanner(PyThread):
                     if self.passesPrescale(fn):
                         data_files[fn] = desc
                     else:
-                        debug("File rejected by prescaling: %s" % (fn,))
-            debug("scanner: data_files:" + str(data_files))
+                        self.debug("File rejected by prescaling: %s" % (fn,))
+            self.debug("scanner: data_files:" + str(data_files))
             # 2. scan for metadata files
             for desc in file_descs:
                 fn = desc.Name
@@ -133,13 +128,13 @@ class Scanner(PyThread):
                     if data_fn in data_files:
                         desc = data_files[data_fn]
                         self.Manager.addFile(desc)
-                        debug("File is ready: %s" % (desc,))
+                        self.debug("File is ready: %s" % (desc,))
 
     def listFilesUnder(self, location):
         out = []
         status, error, files, dirs = self.listFilesAndDirs(location, self.OperationTimeout)
-        #debug("Files: %s" % (files,))
-        #debug("Dirs: %s" % (dirs,))
+        #self.debug("Files: %s" % (files,))
+        #self.debug("Dirs: %s" % (dirs,))
         if status == 0:
             out += files
             if self.Recursive:
@@ -155,7 +150,7 @@ class Scanner(PyThread):
         files = []
         dirs = []
         error = ""
-        status, out = runCommand(lscommand, timeout, debug)
+        status, out = runCommand(lscommand, timeout, self.debug)
         if status:
             error = out
             self.log("Error in ls (%s): %s" % (lscommand, error,))
@@ -201,5 +196,5 @@ class Scanner(PyThread):
         while True:
             if not self.Held:
                 self.scan()
-            debug("waiting...")
+            self.debug("waiting...")
             self.sleep(self.ScanInterval)
