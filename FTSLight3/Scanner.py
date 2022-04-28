@@ -99,7 +99,7 @@ class Scanner(PyThread, Logged):
         self.OperationTimeout = config.ScannerOperationTimeout
         
         self.Held = False
-        self.self.debug("initiated")
+        self.debug("initiated")
                 
     def passesPrescale(self, fn):
         return (hash(fn + self.PrescaleSalt) % self.PrescaleMultiplier) < self.PrescaleFactor

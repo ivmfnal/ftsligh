@@ -39,6 +39,7 @@ def init_logger(log_output, debug_enabled=False, debug_out=None, error_out=None)
     global LogOut, ErrorOut, DebugOut, DebugEnabled
     LogOut = make_log(log_output, sys.stdout)
     ErrorOut = make_log(error_out, sys.stderr)
+    debug_out = debug_out or log_output
     DebugOut = None if not debug_enabled else make_log(debug_out, sys.stdout)
     DebugEnabled = debug_enabled
     

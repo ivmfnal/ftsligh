@@ -1,4 +1,4 @@
-import sqlite3
+import sqlite3, time
 from pythreader import Primitive, synchronized
 
 class _HistoryDB(Primitive):

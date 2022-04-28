@@ -49,7 +49,7 @@ class FTS3Transfer(object):
                 pass
         return data
         
-    def wait(self, poll_interval=10, timeout=None):
+    def wait(self, timeout=None, poll_interval=10):
         # on success: return True, self.Failed == False
         # on error: return True, self.Failed = True, self.Erorr contains the error
         # on timeout returns False
@@ -59,6 +59,7 @@ class FTS3Transfer(object):
         while not done and (t1 is None or time.time() < t1):
             self.update_status()
             state = self.State
+            print("FTS3.wait: state:", state)
             if state == "FAILED":
                 self.Failed = True
                 done = True
@@ -68,6 +69,8 @@ class FTS3Transfer(object):
                     dt = max(0.0, min(dt, t1 - time.time()))
                     if dt <= 0:
                         break       # timeout
+                print("   sleep dt:", dt, "t1:", t1, "now:", time.time())
+                time.sleep(dt)
             elif state == "FINISHED":
                 done = True
             else:

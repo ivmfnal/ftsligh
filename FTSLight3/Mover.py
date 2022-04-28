@@ -8,9 +8,9 @@ from fts3client import FTS3
 from logs import Logged
 
 class FileMoverTask(Task, Logged):
-    def __init__(self, manager, fts_client, config, logger, filedesc):
+    def __init__(self, manager, config, fts_client, logger, filedesc):
         Task.__init__(self)
-        Logged.__init__(f"MoverTask({filedesc.Name})")
+        Logged.__init__(self, f"MoverTask({filedesc.Name})")
         self.ID = "%s.%s" % (id(self),time.time())
         self.FTSClient = fts_client
         self.Manager = manager
@@ -21,15 +21,15 @@ class FileMoverTask(Task, Logged):
         self.Location  = filedesc.Location
 
         self.FilePath = filedesc.Path
-        self.FileRelPath = filedesc.RelPath         # path relative to the Location, with leading slash removed
-        self.FileSrcURL = self.Manager.sourceURL(self.FileRelPath)
-        self.FileDstURL = self.Manager.destinationURL(self.FileRelPath)
+        self.FileRelpath = filedesc.Relpath         # path relative to the Location, with leading slash removed
+        self.FileSrcURL = self.Manager.sourceURL(filedesc.Location, filedesc.Relpath)
+        self.FileDstURL = self.Manager.destinationURL(filedesc.Location, filedesc.Relpath)
 
         self.MetadataFileName = filename + ".json"
         self.MetadataFilePath = self.FilePath + ".json"
-        self.MetaRelPath = self.FileRelPath + ".json"
-        self.MetaSrcURL = self.Manager.sourceURL(self.MetaRelPath)
-        self.MetaDstURL = self.Manager.destinationURL(self.MetaRelPath)
+        self.MetaRelpath = self.FileRelpath + ".json"
+        self.MetaSrcURL = self.Manager.sourceURL(filedesc.Location, self.MetaRelpath)
+        self.MetaDstURL = self.Manager.destinationURL(filedesc.Location, self.MetaRelpath)
 
         self.Size = filedesc.Size
         self.TempDir = config.TempDir
@@ -102,11 +102,14 @@ class FileMoverTask(Task, Logged):
             except:
                 pass
 
+        self.debug("metadata validated")
+
         #
         # transfer metadata
         #
         self.updateStatus("transferring metadata")
         request = self.FTSClient.submit(self.MetaSrcURL, self.MetaDstURL)
+        self.debug("Metadata transfer request submitted:", request.JobID)
         done = request.wait(self.TransferTimeout)
         if done:
             if request.Failed:
@@ -360,7 +363,7 @@ class GraphiteSender(PyThread):
 class Manager(PyThread, Logged):
 
     def __init__(self, config, held, history_db):
-        Logged.__init__("Manager")
+        Logged.__init__(self, "Manager")
     
         PyThread.__init__(self)
         self.HistoryDB = history_db
@@ -453,15 +456,11 @@ class Manager(PyThread, Logged):
     def knownFile(self, fn):
         return fn in self.DoneHistory or self.HistoryDB.fileDone(fn)
         
-    def sourceURL(self, relpath):
-        assert relpath.startswith(self.RemovePathPrefix)
-        tail = relpath[len(self.RemovePathPrefix):]
-        return self.Config.SourceURLPattern.replace("$tail", tail)
+    def sourceURL(self, location, relpath):
+        return self.Config.SourceURLPattern.replace("$relpath", relpath).replace("$location", location)
 
-    def destinationURL(self, relpath):
-        assert relpath.startswith(self.RemovePathPrefix)
-        tail = relpath[len(self.RemovePathPrefix):]
-        return self.Config.DestinationURLPattern.replace("$tail", tail)
+    def destinationURL(self, location, relpath):
+        return self.Config.DestinationURLPattern.replace("$relpath", relpath).replace("$location", location)
 
     def deleteSourceCommand(self, server, path):
         return self.DeleteTemplate\
