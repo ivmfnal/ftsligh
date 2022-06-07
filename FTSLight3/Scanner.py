@@ -83,7 +83,7 @@ class Scanner(PyThread, Logged):
         Logged.__init__(self, f"Scanner@{my_id}")
         self.Manager = manager
         self.Server, self.Location = server, location
-        self.FilenamePattern = config.FilenamePattern
+        self.FilenamePatterns = config.FilenamePatterns
         self.lsCommandTemplate = config.lsCommandTemplate\
             .replace("$server", self.Server)
                 
@@ -107,13 +107,14 @@ class Scanner(PyThread, Logged):
     @synchronized
     def scan(self):
         status, error, file_descs = self.listFilesUnder(self.Location)
+        #self.log("scan status:", status, "  error:", error or "-", "  files:", len(file_descs))
         if status == 0:
             data_files = {}     # fn -> desc
             # 1. scan for data files
             for desc in file_descs:
                 fn = desc.Name
                 #fn = path.rsplit("/", 1)[-1]
-                if fnmatch.fnmatch(fn, self.FilenamePattern) \
+                if any(fnmatch.fnmatch(fn, pattern) for pattern in self.FilenamePatterns) \
                                 and self.Manager.newFile(fn):
                     if self.passesPrescale(fn):
                         data_files[fn] = desc

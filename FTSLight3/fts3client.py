@@ -29,10 +29,10 @@ class FTS3Transfer(object):
         return self.State, self.Reason
 
     def update_status(self):
-        print("updating status...")
+        #print("updating status...")
         data = self.Client.job_status(self.JobID)
         files = data["files"] = self.Client.files(self.JobID)
-        print("status updated")
+        #print("status updated")
         self.State = data.get("job_state")
         self.Reason = data.get("reason")
         assert isinstance(files, list) and len(files) == 1
@@ -59,7 +59,7 @@ class FTS3Transfer(object):
         while not done and (t1 is None or time.time() < t1):
             self.update_status()
             state = self.State
-            print("FTS3.wait: state:", state)
+            #print("FTS3.wait: state:", state)
             if state == "FAILED":
                 self.Failed = True
                 done = True
@@ -69,7 +69,7 @@ class FTS3Transfer(object):
                     dt = max(0.0, min(dt, t1 - time.time()))
                     if dt <= 0:
                         break       # timeout
-                print("   sleep dt:", dt, "t1:", t1, "now:", time.time())
+                #print("   sleep dt:", dt, "t1:", t1, "now:", time.time())
                 time.sleep(dt)
             elif state == "FINISHED":
                 done = True
@@ -100,7 +100,7 @@ class FTS3(object):
             metadata.update(meta_args)
             request["metadata"] = metadata
         response = self.Context.post_json("/jobs", request)
-        print(response)
+        #print(response)
         job_id = json.loads(response)["job_id"]
         return FTS3Transfer(self, job_id, src_url, dst_url)
 

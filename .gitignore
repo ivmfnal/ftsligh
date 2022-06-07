@@ -1,3 +1,5 @@
+.*
+!.gitignore
 git_token
 *.bak
 x509up_ivm

@@ -6,12 +6,14 @@ from Scanner import ScanManager
 from tools import runCommand
 from fts3client import FTS3
 from logs import Logged
+from uid import uid
 
 class FileMoverTask(Task, Logged):
     def __init__(self, manager, config, fts_client, logger, filedesc):
         Task.__init__(self)
-        Logged.__init__(self, f"MoverTask({filedesc.Name})")
-        self.ID = "%s.%s" % (id(self),time.time())
+        self.ID = uid()
+        self.LogName = f"MoverTask({self.ID})"
+        Logged.__init__(self, self.LogName)
         self.FTSClient = fts_client
         self.Manager = manager
         filename = filedesc.Name
@@ -46,6 +48,7 @@ class FileMoverTask(Task, Logged):
         self.TransferTimeout = config.TransferTimeout
         self.TransferTime = None
         self.TransferStarted = None
+        self.log("created for:", filedesc.Path)
 
     def __str__(self):
         return "[FileMoverTask(%s %s %s)]" % (
@@ -61,10 +64,10 @@ class FileMoverTask(Task, Logged):
             self.failed("File mover exception: %s" % (traceback.format_exc(),))
         self.debug("Mover %s ended" % (self.FileName,))
         
-    def log(self, msg):
-        self.Logger.log("[%s]: %s" % (self.FileName, msg))
-        self.Log.append(msg)
-            
+    def log(self, *what):
+        Logged.log(self, *what)
+        self.Logger.log(self.LogName+":", *what)
+
     def updateStatus(self, status):
         self.Status = status
         self.Manager.HistoryDB.addFileRecord(self.FileName, status, "")
@@ -88,7 +91,7 @@ class FileMoverTask(Task, Logged):
 
         json_text = open(meta_tmp, "r").read()
         
-        self.log("original metadata JSON: %s" % (json_text,))
+        self.debug("original metadata JSON: %s" % (json_text,))
         
         try:    
             metadata = json.loads(json_text)
@@ -265,7 +268,12 @@ class Configuration(object):
 
         self.ScanInterval = int(config.get("Scanner", "ScanInterval", 20))
         self.lsCommandTemplate = config.get("Scanner", "lsCommandTemplate")
-        self.FilenamePattern = config.get("Scanner", "FilenamePattern")
+
+        fn_pattern = config.get("Scanner", "FilenamePattern", "")
+        patterns = config.get("Scanner", "FilenamePatterns", fn_pattern)
+        if not patterns:
+            raise ValueError("filename patterns must be specified")
+        self.FilenamePatterns = patterns.split()
         
         self.DirectoryRE = config.get("Scanner", "DirectoryRE", "^d")
         self.FileRE = config.get("Scanner", "FileRE", "^-")
@@ -304,17 +312,16 @@ class Configuration(object):
         
 class Logger(Primitive):
 
-    def __init__(self, logfile, time_to_keep):
+    def __init__(self, time_to_keep):
         Primitive.__init__(self)
         self.Log = []       # (timestamp, message)
-        self.LogFile = LogFile(logfile) if logfile != "-" else LogStream(sys.stdout)
         self.TimeToKeep = time_to_keep
 
     @synchronized        
-    def log(self, msg):
+    def log(self, *what):
         t = time.time()
+        msg = " ".join(str(x) for x in what)
         self.Log.append((t, msg))
-        self.LogFile.log("%s: %s" % (time.ctime(t), msg))
         
         #
         # purge log
@@ -327,7 +334,6 @@ class Logger(Primitive):
         
     def getLog(self):
         return self.Log[:]
-        
 
 class GraphiteSender(PyThread):
 
@@ -367,7 +373,8 @@ class GraphiteSender(PyThread):
 class Manager(PyThread, Logged):
 
     def __init__(self, config, held, history_db):
-        Logged.__init__(self, "Manager")
+        self.LogName = "Manager"
+        Logged.__init__(self, self.LogName)
     
         PyThread.__init__(self)
         self.HistoryDB = history_db
@@ -383,7 +390,7 @@ class Manager(PyThread, Logged):
         self.ChecksumRequired = self.Config.ChecksumRequired
         self.MaxMovers = self.Config.MaxMovers
         self.SourcePurge = self.Config.SourcePurge
-        self.Logger = Logger(self.Config.LogFile, self.Config.KeepLogInterval)
+        self.Logger = Logger(self.Config.KeepLogInterval)
         self.DatabaseFile = self.Config.DatabaseFile
         self.TransferTimeout = self.Config.TransferTimeout
         self.StaggerInterval = self.Config.StaggerInterval
@@ -422,8 +429,9 @@ class Manager(PyThread, Logged):
     def getConfig(self):
         return self.Config.asList()
     
-    def log(self, what):
-        self.Logger.log("Mover: %s" % (what,))
+    def log(self, *what):
+        Logged.log(self, *what)
+        self.Logger.log(self.LogName + ":", *what)
         
     def getLog(self):
         return self.Logger.getLog()
