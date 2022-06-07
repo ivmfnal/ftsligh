@@ -1,5 +1,5 @@
-VERSION = 3.0
-PRODUCT = FTS-light
+VERSION = 3.3
+PRODUCT = FTS-light3
 BUILD_HOME = $(HOME)/build
 BUILD_DIR = $(BUILD_HOME)/$(PRODUCT)
 TAR_DIR = /tmp/$(USER)
@@ -7,9 +7,9 @@ TAR_FILE = $(TAR_DIR)/$(PRODUCT)_$(VERSION).tar
 
 
 FILES = \
-charts.html	      GUI.py	     index.html      RELEASE_NOTES  template.html  Version.py  \
+charts.html	      GUI.py	     index.html      template.html  Version.py  \
 config.html	      history.html   input_dir.html  log.html	 Mover.py       Scanner.py     tools.py	 \
-GraphiteInterface.py  mover.cfg	static	      WebService.py  
+GraphiteInterface.py  mover.cfg	static	      WebService.py  fts3client.py context.py request.py
 
 
 all: tarball
