@@ -1,5 +1,5 @@
 import requests, json, time
-from fts3.rest.client import Context
+from context import Context
 
 class FTS3TransferTimeout(Exception):
     pass
