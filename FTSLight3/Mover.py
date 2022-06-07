@@ -1,4 +1,4 @@
-from pythreader import PyThread, synchronized, Primitive, Task, TaskQueue, LogFile
+from pythreader import PyThread, synchronized, Primitive, Task, TaskQueue, LogFile, LogStream
 from configparser import ConfigParser
 import json, sys, os, time, glob, traceback
 from GraphiteInterface import GraphiteInterface
@@ -90,7 +90,10 @@ class FileMoverTask(Task, Logged):
         
         self.log("original metadata JSON: %s" % (json_text,))
         
-        try:    metadata = json.loads(json_text)
+        try:    
+            metadata = json.loads(json_text)
+            if "size" not in metadata or "checksum" not in metadata:
+                return self.failed("metadata does not include size or checksum")
         except: 
             self.log("metadata parsing error: %s" % (traceback.format_exc(),))
             self.log("metadata file contents -------\n%s\n----- end if metadata file contents -----" % (open(meta_tmp, "r").read(),))
@@ -103,6 +106,25 @@ class FileMoverTask(Task, Logged):
                 pass
 
         self.debug("metadata validated")
+
+        #
+        # transfer data
+        #
+        self.updateStatus("transferring data")
+        request = self.FTSClient.submit(self.FileSrcURL, self.FileDstURL)
+        done = request.wait(self.TransferTimeout)
+        if done:
+            if request.Failed:
+                msg = f"Data transfer failed: {request.Error}"
+                self.log(msg)
+                self.failed(msg)
+                return
+        else:
+            # timeout
+            msg = "Data transfer timeout"
+            self.log(msg)
+            self.failed(msg)
+            return
 
         #
         # transfer metadata
@@ -120,25 +142,6 @@ class FileMoverTask(Task, Logged):
         else:
             # timeout
             msg = "Metadata transfer timeout"
-            self.log(msg)
-            self.failed(msg)
-            return
-
-        #
-        # transfer data
-        #
-        self.updateStatus("transferring data")
-        request = self.FTSClient.submit(self.FileSrcURL, self.FileDstURL)
-        done = request.wait(self.TransferTimeout)
-        if done:
-            if request.Failed:
-                msg = f"Data transfer failed: {request.Error}"
-                self.log(msg)
-                self.failed(msg)
-                return
-        else:
-            # timeout
-            msg = "Data transfer timeout"
             self.log(msg)
             self.failed(msg)
             return
@@ -304,7 +307,7 @@ class Logger(Primitive):
     def __init__(self, logfile, time_to_keep):
         Primitive.__init__(self)
         self.Log = []       # (timestamp, message)
-        self.LogFile = LogFile(logfile)
+        self.LogFile = LogFile(logfile) if logfile != "-" else LogStream(sys.stdout)
         self.TimeToKeep = time_to_keep
 
     @synchronized        
@@ -572,7 +575,7 @@ if __name__ == "__main__":
     from GUI import GUIThread
     import logs
     
-    opts, args = getopt.getopt(sys.argv[1:], "c:d")
+    opts, args = getopt.getopt(sys.argv[1:], "c:dl:")
     opts = dict(opts)
     config = opts.get("-c") or os.environ.get("MOVER_CFG")
     if not config:
@@ -584,6 +587,9 @@ if __name__ == "__main__":
     history_db = historydb.open(config.DatabaseFile)
     
     held = history_db.getConfig().get("held", "no") == "yes"
+
+    if "-l" in opts:
+        config.LogFile = opts["-l"]
     
     manager = Manager(config, held, history_db)
     
