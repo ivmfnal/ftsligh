@@ -24,14 +24,14 @@ class FileMoverTask(Task, Logged):
 
         self.FilePath = filedesc.Path
         self.FileRelpath = filedesc.Relpath         # path relative to the Location, with leading slash removed
-        self.FileSrcURL = self.Manager.sourceURL(filedesc.Location, filedesc.Relpath)
-        self.FileDstURL = self.Manager.destinationURL(filedesc.Location, filedesc.Relpath)
+        self.FileSrcURL = self.Manager.sourceURL(filedesc)
+        self.FileDstURL = self.Manager.destinationURL(filedesc)
 
         self.MetadataFileName = filename + ".json"
         self.MetadataFilePath = self.FilePath + ".json"
         self.MetaRelpath = self.FileRelpath + ".json"
-        self.MetaSrcURL = self.Manager.sourceURL(filedesc.Location, self.MetaRelpath)
-        self.MetaDstURL = self.Manager.destinationURL(filedesc.Location, self.MetaRelpath)
+        self.MetaSrcURL = self.Manager.sourceURL(filedesc)
+        self.MetaDstURL = self.Manager.destinationURL(filedesc)
 
         self.Size = filedesc.Size
         self.TempDir = config.TempDir
@@ -468,11 +468,17 @@ class Manager(PyThread, Logged):
     def knownFile(self, fn):
         return fn in self.DoneHistory or self.HistoryDB.fileDone(fn)
         
-    def sourceURL(self, location, relpath):
-        return self.Config.SourceURLPattern.replace("$relpath", relpath).replace("$location", location)
+    def sourceURL(self, filedesc):
+        return self.Config.SourceURLPattern             \
+            .replace("$relpath", filedesc.Relpath)      \
+            .replace("$location", filedesc.Location)    \
+            .replace("$server", filedesc.Server)
 
-    def destinationURL(self, location, relpath):
-        return self.Config.DestinationURLPattern.replace("$relpath", relpath).replace("$location", location)
+    def destinationURL(self, filedesc):
+        return self.Config.DestinationURLPattern        \
+            .replace("$relpath", filedesc.Relpath)      \
+            .replace("$location", filedesc.Location)    \
+            .replace("$server", filedesc.Server)
 
     def deleteSourceCommand(self, server, path):
         return self.DeleteTemplate\
