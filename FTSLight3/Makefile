@@ -7,10 +7,12 @@ TAR_FILE = $(TAR_DIR)/$(PRODUCT)_$(VERSION).tar
 
 
 FILES = \
-	charts.html	      GUI.py	     index.html      template.html  Version.py  \
-	config.html	      history.html   input_dir.html  log.html	 Mover.py       Scanner.py     tools.py	 \
-	GraphiteInterface.py  mover.cfg	static	      WebService.py  \
-	logs.py uid.py fts3client
+	Version.py  Mover.py Scanner.py tools.py historydb.py \
+	GraphiteInterface.py mover.cfg \
+	logs.py uid.py \
+	fts3client \
+	WebService.py GUI.py static \
+	charts.html index.html template.html config.html history.html input_dir.html log.html	 
 
 
 all: tarball
