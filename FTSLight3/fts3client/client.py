@@ -1,6 +1,5 @@
-import .requests, json, time
+import requests, json, time
 from .context import Context
-
 from .exceptions import FTS3ClientException
 
 class FTS3TransferTimeout(FTS3ClientException):
