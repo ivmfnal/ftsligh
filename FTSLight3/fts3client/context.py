@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 
 #from .exceptions import *
-from request import Request, ClientError, ServerError, TryAgain, NeedDelegation
+from request import Request, FTS3ClientException, BadEndpoint
 
 
 def _get_default_proxy():

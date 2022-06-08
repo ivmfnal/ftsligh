@@ -16,20 +16,7 @@ import os
 import urllib3
 import requests
 
-#from .exceptions import *
-
-class ClientError(Exception):
-    pass
-    
-class ServerError(Exception):
-    pass
-
-class TryAgain(Exception):
-    pass
-
-class NeedDelegation(Exception):
-    pass
-
+from .exceptions import *
 
 class Request:
     def __init__(

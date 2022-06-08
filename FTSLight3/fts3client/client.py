@@ -1,10 +1,12 @@
-import requests, json, time
-from context import Context
+import .requests, json, time
+from .context import Context
 
-class FTS3TransferTimeout(Exception):
+from .exceptions import FTS3ClientException
+
+class FTS3TransferTimeout(FTS3ClientException):
     pass
 
-class FTS3TransferError(Exception):
+class FTS3TransferError(FTS3ClientException):
 
     def __init__(self, message):
         self.Message = message
@@ -112,12 +114,12 @@ class FTS3(object):
         status_response = self.Context.get(f"/jobs/{job_id}/files")
         return json.loads(status_response)
 
-Usage = """
-python fts3client.py <server> <proxy> <src url> <dst url>
-"""
-        
 if __name__ == "__main__":
     import sys
+
+    Usage = """Usage:
+    python fts3client.py <server> <proxy> <src url> <dst url>
+    """
 
     if len(sys.argv[1:]) != 4:
         print(Usage)
