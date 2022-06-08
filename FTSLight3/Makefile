@@ -1,4 +1,4 @@
-VERSION = 3.4
+VERSION = 3.5
 PRODUCT = FTS-light3
 BUILD_HOME = $(HOME)/build
 BUILD_DIR = $(BUILD_HOME)/$(PRODUCT)
@@ -23,6 +23,7 @@ tarball: build $(TAR_DIR)
 build: $(BUILD_DIR)
 	find . -type f -name \*.pyc -exec rm -f {} \;
 	cp -R $(FILES) $(BUILD_DIR)
+	cp -R run $(BUILD_DIR)
 	echo 'Version="$(VERSION)"' > $(BUILD_DIR)/Version.py
 	
 clean:
