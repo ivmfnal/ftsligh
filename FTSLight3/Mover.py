@@ -12,7 +12,7 @@ class FileMoverTask(Task, Logged):
     def __init__(self, manager, config, fts_client, logger, filedesc):
         Task.__init__(self)
         self.ID = uid()
-        self.LogName = f"MoverTask({self.ID})"
+        self.LogName = f"MoverTask({filedesc.Name})"
         Logged.__init__(self, self.LogName)
         self.FTSClient = fts_client
         self.Manager = manager
