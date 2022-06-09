@@ -20,6 +20,7 @@ class Handler(WPHandler):
         return WPHandler.render_to_response(self, template, **params)
         
     def index(self, req, rel_path, **args):
+        
         movers, queue, retry, done, waiting = self.App.Manager.info()
         
         states = [
@@ -40,7 +41,6 @@ class Handler(WPHandler):
                 files_in_states[state] = [desc]
             else:
                 files_in_states[state].append(desc)
-            files_in_states[state].sort()
         for m in movers:
             add_file_in_state(m.FileDescriptor, m.Status)
         for desc in queue:
@@ -49,6 +49,12 @@ class Handler(WPHandler):
             add_file_in_state(desc, "to be retried")
         for filename, event, tend, size, elapsed in done:
             add_file_in_state(filename, "done")
+            
+        files_in_states = {     # sort all lists by file path
+            state:  sorted(lst, key=lambda d: d.Path)
+            for state, lst in list(files_in_states.items())
+        }
+            
         return self.render_to_response("index.html", 
             states = states, files_in_states=files_in_states, waiting=waiting,
             movers=movers, queue=queue, retry=retry, done=done)

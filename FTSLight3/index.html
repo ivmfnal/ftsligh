@@ -10,7 +10,7 @@
         {% for state in states %}
             <tr>
                 <th>{{state}}</th>
-                <td>{{files_in_states[state]|count}}</td>
+                <td>{{files_in_states.get(state, [])|length}}</td>
             </tr>
         {% endfor %}
 </table>
