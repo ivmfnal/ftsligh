@@ -10,7 +10,7 @@
         {% for state in states %}
             <tr>
                 <th>{{state}}</th>
-                <td>{{files_in_states.get(state, [])|length}}</td>
+                <td>{{files_in_states.get(state, 0)}}</td>
             </tr>
         {% endfor %}
 </table>
@@ -26,30 +26,23 @@
     <tr>
         <th>Active transfers</th>
     </tr>
-    {% for mover in movers %}
+    {% for m in active %}
         <tr>
-            <td><a href="./history?filename={{mover.FileName}}">{{mover.FileDescriptor}}</a></td>
-            <td>{{mover.Status}}</td>
+            <td><a href="./history?filename={{m.FileDescriptor.Name}}">{{m.FileDescriptor.Path}}</a></td>
+            <td>{{m.Status}}</td>
         </tr>
     {% endfor %}
 
-    {% for desc in queue %}
+    {% for m in queue %}
         <tr>
-            <td><a href="./history?filename={{desc.Name}}">{{desc}}</a></td>
-            <td>ready</td>
-        </tr>
-    {% endfor %}
-    
-    {% for t, desc in waiting %}
-        <tr>
-            <td><a href="./history?filename={{desc.Name}}">{{desc}}</a></td>
-            <td>waiting for metadata since {{t|dt_fmt}}</td>
+            <td><a href="./history?filename={{m.FileDescriptor.Name}}">{{m.FileDescriptor.Path}}</a></td>
+            <td>queued</td>
         </tr>
     {% endfor %}
     
     {% for t, desc in retry %}
         <tr>
-            <td><a href="./history?filename={{desc.Name}}">{{desc}}</a></td>
+            <td><a href="./history?filename={{desc.Name}}">{{desc.Path}}</a></td>
             <td>retry after {{t|dt_fmt}}&nbsp;<a href="./retry_now?filename={{desc.Name}}">retry now</a></td>
         </tr>
     {% endfor %}
@@ -68,6 +61,7 @@
             <td>{{size|pretty_size}}, {{(size/elapsed)|pretty_size}}/sec</td>
         </tr>
     {% endfor %}
+
 </table>
 
 <script type="text/javascript">
