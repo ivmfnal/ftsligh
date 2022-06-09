@@ -596,14 +596,13 @@ if __name__ == "__main__":
         print("Configuration file must be specified either with -c or using env. variable MOVER_CFG")
     config = Configuration(config)
     
-    logs.init_logger("-", "-d" in opts)
-    
+    log_file = opts.get("-l", config.LogFile)
+    logs.init_logger(log_file, "-d" in opts)
+
     history_db = historydb.open(config.DatabaseFile)
     
     held = history_db.getConfig().get("held", "no") == "yes"
 
-    if "-l" in opts:
-        config.LogFile = opts["-l"]
     
     manager = Manager(config, held, history_db)
     
