@@ -21,10 +21,9 @@ class Handler(WPHandler):
         
     def index(self, req, rel_path, **args):
         
-        movers, queue, retry, done, waiting = self.App.Manager.info()
-        
+        active, queue, retry, done = self.App.Manager.file_lists()
         states = [
-            "ready",
+            "queued",
             "starting",
             "transferring data",
             "downloading metadata",
@@ -33,31 +32,20 @@ class Handler(WPHandler):
             "done"
         ]
         
-        files_in_states = dict((label, []) for label in states)   
+        files_in_states = {label:0 for label in states}   
         
-        def add_file_in_state(desc, state):
-            #print state, files_in_states.get(state, "empty")
-            if not state in files_in_states:
-                files_in_states[state] = [desc]
-            else:
-                files_in_states[state].append(desc)
-        for m in movers:
-            add_file_in_state(m.FileDescriptor, m.Status)
-        for desc in queue:
-            add_file_in_state(desc, "ready")
-        for desc, rt in retry:
-            add_file_in_state(desc, "to be retried")
-        for filename, event, tend, size, elapsed in done:
-            add_file_in_state(filename, "done")
-            
-        files_in_states = {     # sort all lists by file path
-            state:  sorted(lst, key=lambda d: d.Path)
-            for state, lst in list(files_in_states.items())
-        }
-            
+        def add_file_in_state(state, n=1):
+            files_in_states[state] = files_in_states.get(state, 0) + n
+
+        for m in active:
+            add_file_in_state(m.Status)
+        add_file_in_state("queued", len(queue))
+        add_file_in_state("to be retried", len(retry))
+        add_file_in_state("done", len(done))
+
         return self.render_to_response("index.html", 
-            states = states, files_in_states=files_in_states, waiting=waiting,
-            movers=movers, queue=queue, retry=retry, done=done)
+            states = states, files_in_states=files_in_states, 
+            active=active, queue=queue, retry=retry, done=done)
         
     def log(self, req, rel_path, **args):
         log = reversed(self.App.Manager.getLog())

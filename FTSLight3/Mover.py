@@ -455,14 +455,12 @@ class Manager(PyThread, Logged):
         self.log("released")
      
     @synchronized
-    def info(self):
-        retry_queue = sorted(self.RetryQueue.values(), key = lambda item:   item[1].Name)     # sort by name
-        done_history = self.HistoryDB.doneHistory(time.time() - 24*3600)     # (filename, event, tend, size, elapsed)      ordered by t
+    def file_lists(self):
+        retry_queue = sorted(self.RetryQueue.values(), key=lambda x: x[1].Path)
         queued, running = self.MoverQueue.tasks()
-        queued = [m.FileDescriptor for m in queued]
-        movers = sorted(running, key = lambda mover:   mover.FileName)
+        done = self.HistoryDB.doneHistory(time.time() - 24*3600)	# (filename, event, tend, size, elapsed)      ordered by t
         #self.debug("queued: %s active: %s" % (queued, movers))
-        return (movers, queued, retry_queue, done_history, [])
+        return (running, queued, retry_queue, done)
         
     @synchronized
     def knownFile(self, fn):
