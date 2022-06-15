@@ -79,7 +79,7 @@ class Scanner(PyThread):
         PyThread.__init__(self)
         self.Manager = manager
         self.Server, self.Location = server, location
-        self.FilenamePattern = config.FilenamePattern
+        self.FilenamePatterns = config.FilenamePatterns
         self.lsCommandTemplate = config.lsCommandTemplate\
             .replace("$server", self.Server)
                 
@@ -112,7 +112,7 @@ class Scanner(PyThread):
             for desc in file_descs:
                 fn = desc.Name
                 #fn = path.rsplit("/", 1)[-1]
-                if fnmatch.fnmatch(fn, self.FilenamePattern) \
+                if any(fnmatch.fnmatch(fn, pattern) for pattern in self.FilenamePatterns) \
                                 and self.Manager.newFile(fn):
                     if self.passesPrescale(fn):
                         data_files[fn] = desc

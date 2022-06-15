@@ -24,14 +24,14 @@ class FileMoverTask(Task, Logged):
 
         self.FilePath = filedesc.Path
         self.FileRelpath = filedesc.Relpath         # path relative to the Location, with leading slash removed
-        self.FileSrcURL = self.Manager.sourceURL(filedesc)
-        self.FileDstURL = self.Manager.destinationURL(filedesc)
+        self.FileSrcURL = self.Manager.sourceURL(filedesc, self.FileRelpath)
+        self.FileDstURL = self.Manager.destinationURL(filedesc, self.FileRelpath)
 
         self.MetadataFileName = filename + ".json"
         self.MetadataFilePath = self.FilePath + ".json"
         self.MetaRelpath = self.FileRelpath + ".json"
-        self.MetaSrcURL = self.Manager.sourceURL(filedesc)
-        self.MetaDstURL = self.Manager.destinationURL(filedesc)
+        self.MetaSrcURL = self.Manager.sourceURL(filedesc, self.MetaRelpath)
+        self.MetaDstURL = self.Manager.destinationURL(filedesc, self.MetaRelpath)
 
         self.Size = filedesc.Size
         self.TempDir = config.TempDir
@@ -95,7 +95,7 @@ class FileMoverTask(Task, Logged):
         
         try:    
             metadata = json.loads(json_text)
-            if "size" not in metadata or "checksum" not in metadata:
+            if "file_size" not in metadata or "checksum" not in metadata:
                 return self.failed("metadata does not include size or checksum")
         except: 
             self.log("metadata parsing error: %s" % (traceback.format_exc(),))
@@ -274,6 +274,7 @@ class Configuration(object):
         if not patterns:
             raise ValueError("filename patterns must be specified")
         self.FilenamePatterns = patterns.split()
+        #print("patterns:", self.FilenamePatterns)
         
         self.DirectoryRE = config.get("Scanner", "DirectoryRE", "^d")
         self.FileRE = config.get("Scanner", "FileRE", "^-")
@@ -468,15 +469,15 @@ class Manager(PyThread, Logged):
     def knownFile(self, fn):
         return fn in self.DoneHistory or self.HistoryDB.fileDone(fn)
         
-    def sourceURL(self, filedesc):
+    def sourceURL(self, filedesc, relpath):
         return self.Config.SourceURLPattern             \
-            .replace("$relpath", filedesc.Relpath)      \
+            .replace("$relpath", relpath)               \
             .replace("$location", filedesc.Location)    \
             .replace("$server", filedesc.Server)
 
-    def destinationURL(self, filedesc):
+    def destinationURL(self, filedesc, relpath):
         return self.Config.DestinationURLPattern        \
-            .replace("$relpath", filedesc.Relpath)      \
+            .replace("$relpath", relpath)               \
             .replace("$location", filedesc.Location)    \
             .replace("$server", filedesc.Server)
 
@@ -621,4 +622,3 @@ if __name__ == "__main__":
     #web_service.start()
 
     manager.join()        
-    

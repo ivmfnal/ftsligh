@@ -107,13 +107,15 @@ class Scanner(PyThread, Logged):
     @synchronized
     def scan(self):
         status, error, file_descs = self.listFilesUnder(self.Location)
-        #self.log("scan status:", status, "  error:", error or "-", "  files:", len(file_descs))
+        self.log("scan status:", status, "  error:", error or "-", "  files:", len(file_descs))
         if status == 0:
             data_files = {}     # fn -> desc
             # 1. scan for data files
             for desc in file_descs:
                 fn = desc.Name
                 #fn = path.rsplit("/", 1)[-1]
+                #print("fn:", desc.Name, "  match:", any(fnmatch.fnmatch(fn, pattern) for pattern in self.FilenamePatterns),
+                #              "  new:", self.Manager.newFile(fn))
                 if any(fnmatch.fnmatch(fn, pattern) for pattern in self.FilenamePatterns) \
                                 and self.Manager.newFile(fn):
                     if self.passesPrescale(fn):
@@ -147,7 +149,7 @@ class Scanner(PyThread, Logged):
 
 
     def listFilesAndDirs(self, location, timeout):
-        lscommand = self.lsCommandTemplate.replace("$location", location)
+        lscommand = self.lsCommandTemplate.replace("$location", location).replace("$server", self.Server)
         files = []
         dirs = []
         error = ""
@@ -174,6 +176,8 @@ class Scanner(PyThread, Logged):
                             dirs.append(path)
                         else:
                             print(f"Unknown directory entry type '{t}' in: {l} -- ignored")
+                    else:
+                        print("can not parse ls line:", l)
         return status, error, files, dirs
         
     @synchronized

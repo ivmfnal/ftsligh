@@ -476,7 +476,12 @@ class Configuration(object):
 
         self.ScanInterval = int(config.get("Scanner", "ScanInterval", 20))
         self.lsCommandTemplate = config.get("Scanner", "lsCommandTemplate")
-        self.FilenamePattern = config.get("Scanner", "FilenamePattern")
+
+        fn_pattern = config.get("Scanner", "FilenamePattern", "")
+        patterns = config.get("Scanner", "FilenamePatterns", fn_pattern)
+        if not patterns:
+            raise ValueError("filename patterns must be specified")
+        self.FilenamePatterns = patterns.split()
         
         self.DirectoryRE = config.get("Scanner", "DirectoryRE", "^d")
         self.FileRE = config.get("Scanner", "FileRE", "^-")
